@@ -4,18 +4,21 @@ const router = new express.Router();
 const db = require('../db');
 
 router.get('/', async function(req, res, next) {
+  // try to grab the companies from the db
   try {
     let companies = await db.query(
       `SELECT *
       FROM companies;`
     );
     res.json(companies.rows);
+    // otherwise return whatever error the server says
   } catch (err) {
     next(err);
   }
 });
 
 router.get('/:code', async function(req, res, next) {
+  // tries to show the company whose code is entered
   try {
     let code = req.params['code'];
     const company = await db.query(
@@ -24,7 +27,7 @@ router.get('/:code', async function(req, res, next) {
       WHERE code = $1;`,
       [code]
     );
-
+    // if query returns no results, then throw an error for doesn't exist
     if (company.rowCount > 0) {
       res.json(company.rows[0]);
     } else {
@@ -32,6 +35,7 @@ router.get('/:code', async function(req, res, next) {
       err.status = 404;
       return next(err);
     }
+    // return the error that gets passed from the server
   } catch (err) {
     next(err);
   }
@@ -39,12 +43,10 @@ router.get('/:code', async function(req, res, next) {
 
 router.post('/', async function(req, res, next) {
   try {
-    // let code = req.body['code'];
-    // let name = req.body['name'];
-    // let description = req.body['description'];
-
+    // destructure the req.body
     let { code, name, description } = req.body;
 
+    //if they are all passed from the client, then add company to db
     if (code && name && description) {
       const company = await db.query(
         `INSERT INTO companies
@@ -56,12 +58,15 @@ router.post('/', async function(req, res, next) {
 
       return res.json(company);
     } else {
+      // if they're missing a param, tell them they need all three
       let err = new Error(
         'Missing parameters. Please input code, name, and description'
       );
+      // Serve the user a Bad Request message
       err.status = 400;
       return next(err);
     }
+    //return error from server
   } catch (err) {
     next(err);
   }
@@ -69,6 +74,7 @@ router.post('/', async function(req, res, next) {
 
 router.put('/:code', async function(req, res, next) {
   try {
+    // update the company's name and description
     let code = req.params['code'];
     let { name, description } = req.body;
 
@@ -81,12 +87,14 @@ router.put('/:code', async function(req, res, next) {
       [name, description, code]
     );
     return res.json({ company });
+    // pass back the error from the server
   } catch (err) {
     next(err);
   }
 });
 
 router.delete('/:code', async function(req, res, next) {
+  // try to delete the company from the db
   try {
     let code = req.params['code'];
 
@@ -96,6 +104,7 @@ router.delete('/:code', async function(req, res, next) {
       [code]
     );
     return res.json({ status: 'deleted' });
+    // pass back the error from the server
   } catch (err) {
     next(err);
   }
