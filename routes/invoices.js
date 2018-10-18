@@ -130,18 +130,32 @@ router.put('/:id', async function(req, res, next) {
   try {
     // update the invoice's name and description
     let id = req.params['id'];
-    let amt = req.body.amt;
+    let { amt, paid } = req.body;
+    let invoiceRes;
 
-    const invoiceRes = await db.query(
-      `UPDATE invoices
-      SET amt = $1
-      WHERE id = $2
-      RETURNING id, comp_code, amt, paid, add_date, paid_date;`,
-      [amt, id]
-    );
+    if (paid === false) {
+      invoiceRes = await db.query(
+        `UPDATE invoices
+        SET amt = $1
+        WHERE id = $2
+        RETURNING id, comp_code, amt, paid, add_date, paid_date;`,
+        [amt, id]
+      );
+    } else {
+      invoiceRes = await db.query(
+        `UPDATE invoices
+        SET amt = $1,
+        paid_date = CURRENT_DATE,
+        paid = $2
+        WHERE id = $3
+        RETURNING id, comp_code, amt, paid, add_date, paid_date;`,
+        [amt, paid, id]
+      );
+    }
+
     if (invoiceRes.rows.length === 0) {
       let err = new Error('Incorrect invoice id');
-      err.status = 400;
+      err.status = 404;
       return next(err);
     }
     return res.json({ invoice: invoiceRes.rows[0] });
