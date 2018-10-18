@@ -1,5 +1,6 @@
 const express = require('express');
 const router = new express.Router();
+const slugify = require('slugify');
 
 const db = require('../db');
 
@@ -70,7 +71,13 @@ router.post('/', async function(req, res, next) {
       (code, name, description)
       VALUES ($1, $2, $3)
       RETURNING code, name, description;`,
-        [code, name, description]
+        [
+          slugify(code, {
+            remove: /[*#$%^&_=;?/|><+~.,()'"!:@]/g
+          }).toLowerCase(),
+          name,
+          description
+        ]
       );
 
       return res.json({ company: companyRes.rows[0] });
@@ -105,7 +112,11 @@ router.put('/:code', async function(req, res, next) {
       description = $2
       WHERE code = $3
       RETURNING code, name, description;`,
-      [name, description, code]
+      [
+        name,
+        description,
+        slugify(code, { remove: /[*#$%^&_=;?/|><+~.,()'"!:@]/g }).toLowerCase()
+      ]
     );
     if (companyRes.rows.length === 0) {
       let err = new Error('Incorrect company code');
