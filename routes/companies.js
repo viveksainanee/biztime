@@ -4,13 +4,22 @@ const router = new express.Router();
 const db = require('../db');
 
 router.get('/', async function(req, res, next) {
+  /* Performs a query on the database
+  to return all companies and then show
+   a list of all the companies. It also responds
+   with the list of companies 
+   
+   => {companies: [{code, name}, ...]}
+   */
+
   // try to grab the companies from the db
   try {
-    let companies = await db.query(
-      `SELECT *
-      FROM companies;`
+    let companiesRes = await db.query(
+      `SELECT code, name
+      FROM companies
+      ORDER BY code, name;`
     );
-    res.json(companies.rows);
+    res.json({ companies: companiesRes.rows });
     // otherwise return whatever error the server says
   } catch (err) {
     next(err);
@@ -18,18 +27,22 @@ router.get('/', async function(req, res, next) {
 });
 
 router.get('/:code', async function(req, res, next) {
+  /* Performs a query on the database
+  for a specific company code and responds 
+  with the details of the company */
+
   // tries to show the company whose code is entered
   try {
     let code = req.params['code'];
-    const company = await db.query(
-      `SELECT *
+    const companyRes = await db.query(
+      `SELECT code, name, description
       FROM companies
       WHERE code = $1;`,
       [code]
     );
     // if query returns no results, then throw an error for doesn't exist
-    if (company.rowCount > 0) {
-      res.json(company.rows[0]);
+    if (companyRes.rowCount > 0) {
+      res.json({ company: companyRes.rows[0] });
     } else {
       let err = new Error("Company code doesn't exist");
       err.status = 404;
@@ -42,13 +55,17 @@ router.get('/:code', async function(req, res, next) {
 });
 
 router.post('/', async function(req, res, next) {
+  /* Gets data from the POST request, to create a
+   company and adds it to the db. Responds with the 
+   details of the newly added company */
+
   try {
     // destructure the req.body
     let { code, name, description } = req.body;
 
     //if they are all passed from the client, then add company to db
     if (code && name && description) {
-      const company = await db.query(
+      const companyRes = await db.query(
         `INSERT INTO companies
       (code, name, description)
       VALUES ($1, $2, $3)
@@ -56,7 +73,7 @@ router.post('/', async function(req, res, next) {
         [code, name, description]
       );
 
-      return res.json(company);
+      return res.json({ company: companyRes.rows[0] });
     } else {
       // if they're missing a param, tell them they need all three
       let err = new Error(
@@ -73,12 +90,16 @@ router.post('/', async function(req, res, next) {
 });
 
 router.put('/:code', async function(req, res, next) {
+  /* Receives data from the PUT request, to update the data 
+  of the company in  the database, and responds with that companies
+  details */
+
   try {
     // update the company's name and description
     let code = req.params['code'];
     let { name, description } = req.body;
 
-    const company = await db.query(
+    const companyRes = await db.query(
       `UPDATE companies
       SET name = $1,
       description = $2
@@ -86,7 +107,12 @@ router.put('/:code', async function(req, res, next) {
       RETURNING code, name, description;`,
       [name, description, code]
     );
-    return res.json({ company });
+    if (companyRes.rows.length === 0) {
+      let err = new Error('Incorrect company code');
+      err.status = 400;
+      return next(err);
+    }
+    return res.json({ company: companyRes.rows[0] });
     // pass back the error from the server
   } catch (err) {
     next(err);
@@ -94,15 +120,28 @@ router.put('/:code', async function(req, res, next) {
 });
 
 router.delete('/:code', async function(req, res, next) {
+  /* Receives a company code from the URL parameter of what 
+  company to delete, and proceeds to delete it from the database
+  and responds with the JSONified object of "status": "deleted" if 
+  successfully deleted-- otherwise returns with an error. */
+
   // try to delete the company from the db
   try {
     let code = req.params['code'];
 
-    const company = await db.query(
+    const companyRes = await db.query(
       `DELETE FROM companies
-      WHERE code = $1`,
+      WHERE code = $1
+      RETURNING code`,
       [code]
     );
+
+    if (companyRes.rows.length === 0) {
+      let err = new Error('Incorrect company code');
+      err.status = 400;
+      return next(err);
+    }
+
     return res.json({ status: 'deleted' });
     // pass back the error from the server
   } catch (err) {
