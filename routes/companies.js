@@ -36,11 +36,16 @@ router.get('/:code', async function(req, res, next) {
   try {
     let code = req.params['code'];
     const companyRes = await db.query(
-      `SELECT code, name, description
+      `SELECT companies.code, name, description, industry
       FROM companies
-      WHERE code = $1;`,
+      JOIN companies_industries ON companies_industries.comp_code = companies.code
+      JOIN industries ON companies_industries.ind_code = industries.code
+      WHERE companies.code = $1;`,
       [code]
     );
+
+    res.json(companyRes.rows);
+
     // if query returns no results, then throw an error for doesn't exist
     if (companyRes.rowCount > 0) {
       res.json({ company: companyRes.rows[0] });
